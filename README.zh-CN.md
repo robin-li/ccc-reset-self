@@ -27,23 +27,18 @@
 
 ## 架构
 
-```
-┌─────────────┐     #reset      ┌─────────────────┐
-│  Telegram    │ ──────────────▶ │   CCC Bot       │
-│  (用户)       │                 │  (Claude Code)   │
-└─────────────┘                  └────────┬────────┘
-                                          │ touch .reset
-                                          ▼
-                                 ┌─────────────────┐
-                                 │  .reset / .stop  │  ← flag 文件
-                                 └────────┬────────┘
-                                          │ 检测 (每 2 秒)
-                                          ▼
-                                 ┌─────────────────┐
-                                 │  ccc-wrapper.sh  │
-                                 │  (flag 监控)      │──▶ 终止 claude
-                                 │  (重启循环)       │──▶ 重新启动
-                                 └─────────────────┘
+```mermaid
+flowchart TB
+    User["👤 Telegram 用户"]
+    CCC["🤖 CCC Bot\n(Claude Code)"]
+    Flag[".reset / .stop\nflag 文件"]
+    Wrapper["ccc-wrapper.sh\n(flag 监控 + 重启循环)"]
+
+    User -- "#reset / #stop" --> CCC
+    CCC -- "touch .reset 或 .stop" --> Flag
+    Flag -- "检测 (每 2 秒)" --> Wrapper
+    Wrapper -- "终止 claude" --> CCC
+    Wrapper -. "重新启动\n(若无 .stop)" .-> CCC
 ```
 
 **职责分离：**

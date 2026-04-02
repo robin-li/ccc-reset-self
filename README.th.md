@@ -27,23 +27,18 @@
 
 ## สถาปัตยกรรม
 
-```
-┌─────────────┐     #reset      ┌─────────────────┐
-│  Telegram    │ ──────────────▶ │   CCC Bot       │
-│  (ผู้ใช้)     │                 │  (Claude Code)   │
-└─────────────┘                  └────────┬────────┘
-                                          │ touch .reset
-                                          ▼
-                                 ┌─────────────────┐
-                                 │  .reset / .stop  │  ← ไฟล์ flag
-                                 └────────┬────────┘
-                                          │ ตรวจจับ (ทุก 2 วินาที)
-                                          ▼
-                                 ┌─────────────────┐
-                                 │  ccc-wrapper.sh  │
-                                 │  (ตรวจสอบ flag)  │──▶ ยุติ claude
-                                 │  (วนลูป)         │──▶ เริ่มใหม่
-                                 └─────────────────┘
+```mermaid
+flowchart TB
+    User["👤 Telegram ผู้ใช้"]
+    CCC["🤖 CCC Bot\n(Claude Code)"]
+    Flag[".reset / .stop\nไฟล์ flag"]
+    Wrapper["ccc-wrapper.sh\n(ตรวจสอบ flag + วนลูป)"]
+
+    User -- "#reset / #stop" --> CCC
+    CCC -- "touch .reset หรือ .stop" --> Flag
+    Flag -- "ตรวจจับ (ทุก 2 วินาที)" --> Wrapper
+    Wrapper -- "ยุติ claude" --> CCC
+    Wrapper -. "เริ่มใหม่\n(ถ้าไม่มี .stop)" .-> CCC
 ```
 
 **แบ่งแยกหน้าที่:**

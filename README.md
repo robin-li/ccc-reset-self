@@ -27,23 +27,18 @@ No Python. No polling daemon. No external monitor. Just a shell script and a mar
 
 ## Architecture
 
-```
-┌─────────────┐     #reset      ┌─────────────────┐
-│  Telegram    │ ──────────────▶ │   CCC Bot       │
-│  (User)      │                 │  (Claude Code)   │
-└─────────────┘                  └────────┬────────┘
-                                          │ touch .reset
-                                          ▼
-                                 ┌─────────────────┐
-                                 │  .reset / .stop  │  ← flag files
-                                 └────────┬────────┘
-                                          │ detect (every 2s)
-                                          ▼
-                                 ┌─────────────────┐
-                                 │  ccc-wrapper.sh  │
-                                 │  (flag monitor)  │──▶ kill claude
-                                 │  (restart loop)  │──▶ restart fresh
-                                 └─────────────────┘
+```mermaid
+flowchart TB
+    User["👤 Telegram User"]
+    CCC["🤖 CCC Bot\n(Claude Code)"]
+    Flag[".reset / .stop\nflag files"]
+    Wrapper["ccc-wrapper.sh\n(flag monitor + restart loop)"]
+
+    User -- "#reset / #stop" --> CCC
+    CCC -- "touch .reset or .stop" --> Flag
+    Flag -- "detect (every 2s)" --> Wrapper
+    Wrapper -- "kill claude" --> CCC
+    Wrapper -. "restart fresh\n(if no .stop)" .-> CCC
 ```
 
 **Separation of concerns:**
