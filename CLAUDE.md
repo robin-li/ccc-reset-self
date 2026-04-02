@@ -11,8 +11,8 @@ CCC session 無法自己清除 context。唯一方式：kill process → wrapper
 ## 架構
 
 ```
-用戶 (TG) → #reset → CCC bot → kill $PPID → ccc-wrapper.sh 偵測退出 → 重啟
-用戶 (TG) → #stop  → CCC bot → touch .stop + kill $PPID → wrapper 退出
+用戶 (TG) → #reset → CCC bot touch .reset → wrapper 偵測 flag → kill claude → 重啟
+用戶 (TG) → #stop  → CCC bot touch .stop  → wrapper 偵測 flag → kill claude → 退出
 ```
 
 ## 檔案說明
@@ -27,7 +27,8 @@ CCC session 無法自己清除 context。唯一方式：kill process → wrapper
 
 ## 關鍵設計決策
 
-1. **CCC bot 用 `kill $PPID`**：殺掉 wrapper 的子進程（自己），wrapper 偵測退出碼後重啟
-2. **Stop 用 flag 檔案**：因為 wrapper 需要知道「這次不要重啟」，所以 stop 時先 touch .stop
-3. **先回覆再 kill**：kill 之後什麼都不會執行，所以確認訊息必須先送出
-4. **wrapper 啟動時清 .stop**：避免上次 stop 的殘留 flag 影響重啟
+1. **CCC bot 只 touch flag**：不負責 kill，職責分離乾淨
+2. **Wrapper 負責所有 process 管理**：背景 monitor 每 2 秒查 flag → kill claude 子進程
+3. **Reset = 刪 flag + kill → wrapper 迴圈重啟**
+4. **Stop = 留 flag + kill → wrapper 偵測 .stop 後退出**
+5. **wrapper 啟動時清 flag**：避免殘留 flag 影響重啟

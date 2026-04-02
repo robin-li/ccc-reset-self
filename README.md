@@ -11,15 +11,15 @@ Claude Code sessions can't clear their own context. The only way to get a fresh 
 
 ```
 User sends #reset → CCC bot recognizes command → replies "🔄 Resetting..."
-→ runs kill $PPID → wrapper detects exit → restarts fresh session
+→ touches .reset flag → wrapper detects flag → kills claude → restarts fresh session
 ```
 
-**Two components, zero daemons:**
+**Two components, clear separation of concerns:**
 
-1. **`ccc-wrapper.sh`** — runs Claude Code in a loop. If the process exits, it restarts in 3 seconds. If `.stop` file exists, it exits instead.
-2. **`claude-md-snippet.md`** — instructions for CCC bot to recognize `#reset` / `#stop` and self-terminate. Paste into your project's CLAUDE.md.
+1. **`ccc-wrapper.sh`** — runs Claude Code in a loop with a built-in flag monitor. Detects `.reset` → kill + restart. Detects `.stop` → kill + exit.
+2. **`claude-md-snippet.md`** — instructions for CCC bot to recognize `#reset` / `#stop` and touch the corresponding flag file. Auto-injected into `~/.claude/CLAUDE.md` on install.
 
-No polling daemon. No monitor process. CCC kills itself, the wrapper does the rest.
+CCC bot only touches flags. The wrapper handles all process management.
 
 ## Installation
 

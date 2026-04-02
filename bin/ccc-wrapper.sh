@@ -4,18 +4,20 @@
 #
 # Usage: ccc-wrapper.sh [working_directory] [--model MODEL]
 #
-# Stop: CCC bot touches ~/.claude/scripts/.stop then exits
-# Resume: rm ~/.claude/scripts/.stop && run this script again
+# CCC bot touches flag files, this wrapper handles kill + restart.
 
 CLAUDE_BIN="$(command -v claude 2>/dev/null || echo "$HOME/.local/bin/claude")"
 SCRIPTS_DIR="$HOME/.claude/scripts"
 STOP_FILE="$SCRIPTS_DIR/.stop"
+RESET_FILE="$SCRIPTS_DIR/.reset"
 LOG_DIR="$HOME/.claude/logs"
 LOG_FILE="$LOG_DIR/ccc-wrapper.log"
 PID_FILE="$SCRIPTS_DIR/.ccc-wrapper.pid"
 
 WORK_DIR="$HOME"
 MODEL="sonnet"
+CLAUDE_PID=""
+MONITOR_PID=""
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -37,6 +39,14 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }
 
+cleanup() {
+    # Kill monitor and claude on wrapper exit
+    [ -n "$MONITOR_PID" ] && kill "$MONITOR_PID" 2>/dev/null
+    [ -n "$CLAUDE_PID" ] && kill "$CLAUDE_PID" 2>/dev/null
+    rm -f "$PID_FILE" "$RESET_FILE"
+}
+trap cleanup EXIT
+
 # Prevent multiple wrapper instances
 if [ -f "$PID_FILE" ]; then
     OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
@@ -50,15 +60,39 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 echo $$ > "$PID_FILE"
-trap "rm -f '$PID_FILE'" EXIT
 
-# Clear stale stop file on fresh start
-rm -f "$STOP_FILE"
+# Clear stale flags on fresh start
+rm -f "$STOP_FILE" "$RESET_FILE"
 
 log "CCC Wrapper started (PID $$)"
 log "  Working directory: $WORK_DIR"
 log "  Model: $MODEL"
 log "  Claude binary: $CLAUDE_BIN"
+
+# Background flag monitor — watches for .reset / .stop and kills claude
+start_flag_monitor() {
+    (
+        while true; do
+            sleep 2
+
+            # Stop signal
+            if [ -f "$STOP_FILE" ]; then
+                log "[monitor] Stop flag detected."
+                rm -f "$RESET_FILE"
+                [ -n "$CLAUDE_PID" ] && kill "$CLAUDE_PID" 2>/dev/null
+                break
+            fi
+
+            # Reset signal
+            if [ -f "$RESET_FILE" ]; then
+                log "[monitor] Reset flag detected."
+                rm -f "$RESET_FILE"
+                [ -n "$CLAUDE_PID" ] && kill "$CLAUDE_PID" 2>/dev/null
+            fi
+        done
+    ) &
+    MONITOR_PID=$!
+}
 
 while true; do
     if [ -f "$STOP_FILE" ]; then
@@ -70,12 +104,24 @@ while true; do
     log "Starting Claude Code..."
     cd "$WORK_DIR" || exit 1
 
+    # Start flag monitor
+    start_flag_monitor
+
     "$CLAUDE_BIN" \
         --dangerously-skip-permissions \
         --channels plugin:telegram@claude-plugins-official \
-        --model "$MODEL"
+        --model "$MODEL" &
+    CLAUDE_PID=$!
 
+    # Wait for claude to exit (killed by monitor or crashed)
+    wait "$CLAUDE_PID" 2>/dev/null
     EXIT_CODE=$?
+    CLAUDE_PID=""
+
+    # Stop flag monitor for this iteration
+    [ -n "$MONITOR_PID" ] && kill "$MONITOR_PID" 2>/dev/null
+    MONITOR_PID=""
+
     log "Claude Code exited (code $EXIT_CODE)"
 
     if [ -f "$STOP_FILE" ]; then
