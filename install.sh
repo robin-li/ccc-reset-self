@@ -51,8 +51,16 @@ cp "$PROJECT_DIR/bin/ccc-wrapper.sh" "$INSTALL_DIR/ccc-wrapper.sh"
 chmod +x "$INSTALL_DIR/ccc-wrapper.sh"
 echo "  ✓ Installed: $INSTALL_DIR/ccc-wrapper.sh"
 
-cp "$PROJECT_DIR/claude-md-snippet.md" "$INSTALL_DIR/claude-md-snippet.md"
-echo "  ✓ Installed: $INSTALL_DIR/claude-md-snippet.md"
+# Inject snippet into ~/.claude/CLAUDE.md (global, all sessions)
+CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+MARKER="# CCC Session Control"
+if [ -f "$CLAUDE_MD" ] && grep -qF "$MARKER" "$CLAUDE_MD"; then
+    echo "  ✓ CCC Session Control already in $CLAUDE_MD (skipped)"
+else
+    echo "" >> "$CLAUDE_MD"
+    cat "$PROJECT_DIR/claude-md-snippet.md" >> "$CLAUDE_MD"
+    echo "  ✓ Injected CCC Session Control into $CLAUDE_MD"
+fi
 
 # launchd service
 echo "[5/5] Setting up launchd service..."
@@ -103,7 +111,5 @@ echo ""
 echo "Service: $PLIST_NAME (auto-starts on login)"
 echo "Screen:  screen -r ccc-tg"
 echo ""
-echo "IMPORTANT: Paste the contents of claude-md-snippet.md into your"
-echo "project's CLAUDE.md to enable #reset / #stop commands."
-echo "  cat $INSTALL_DIR/claude-md-snippet.md"
+echo "CCC Session Control commands (#reset / #stop) are active globally."
 echo ""

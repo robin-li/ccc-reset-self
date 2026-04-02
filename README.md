@@ -37,13 +37,7 @@ cd ccc-reset-self
 ./install.sh
 ```
 
-### After install
-
-**Important:** Paste the snippet into your project's CLAUDE.md:
-
-```bash
-cat ~/.claude/scripts/claude-md-snippet.md >> ~/your-project/CLAUDE.md
-```
+The installer automatically injects the `#reset` / `#stop` command instructions into `~/.claude/CLAUDE.md`, which applies globally to all CCC sessions. No manual copy needed.
 
 ## Usage
 
